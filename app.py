@@ -5,7 +5,19 @@ from shiny import reactive
 import seaborn as sns
 from palmerpenguins import load_penguins
 
-continuous_variables = load_penguins().select_dtypes(include=float).columns.to_list()
+penguins_df = load_penguins()
+species_list: list = penguins_df['species'].unique().tolist()
+
+def format_name(name) -> str:
+    split_name: list = name.rsplit('_', 1)
+    new_name: str = split_name[0].replace('_',' ').title() + f' ({split_name[1]})'
+    return new_name
+    
+penguins_df.columns = [
+    format_name(name) if penguins_df.dtypes[name] == float else name.title()
+    for name in penguins_df.columns
+]
+continuous_variables: list = penguins_df.select_dtypes(include=float).columns.tolist()
 
 ui.page_opts(title="Penguin Data By Jordan", fillable=True)
 
@@ -14,16 +26,16 @@ with ui.sidebar(open="open"):
     ui.input_selectize(
         "selected_attribute",
         "Select Attribute",
-        ["bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g"]
+        continuous_variables
     )
     ui.input_numeric("plotly_bin_count", "Plotly Histogram Bins", 50)
     ui.input_slider("seaborn_bin_count", "Seaborn Histogram Bins", 10, 344, 50)
     ui.input_checkbox_group(
         "selected_species_list",
         "Select Species",
-        choices=["Adelie", "Gentoo", "Chinstrap"],
-        selected=["Adelie", "Gentoo", "Chinstrap"],
-        inline=True,
+        choices = species_list,
+        selected = species_list,
+        inline = True,
     )
     ui.input_selectize(
         "selected_attribute_y_scatter",
@@ -34,11 +46,9 @@ with ui.sidebar(open="open"):
     ui.a("GitHub", href="https://github.com/JfromNWMS/cintel-02-data", target="_blank")
 
 @reactive.calc 
-def penguins_df():
-    species_list = input.selected_species_list()
-    return load_penguins().query("species in @species_list")
-    # Boolean indexing is most likely faster than .query() in this instance due to
-    # low complexity of conditions and the dataset being of small-medium size
+def filtered_data():
+    is_species_match = penguins_df["Species"].isin(input.selected_species_list())
+    return penguins_df[is_species_match]
 
 ui.tags.style(
         """
@@ -51,49 +61,52 @@ with ui.layout_columns():
     with ui.card(full_screen=True, class_="card-with-shadow"):
         @render.data_frame
         def datatable():
-            return render.DataTable(penguins_df(), height='185px')
+            return render.DataTable(filtered_data(), height='185px')
             
     with ui.card(full_screen=True, class_="card-with-shadow"):
         @render.data_frame
         def datagrid():
-            return render.DataGrid(penguins_df())
+            return render.DataGrid(filtered_data())
 
 with ui.layout_columns():
     
     with ui.card(full_screen=True, class_="card-with-shadow"):
+        ui.card_header("Plotly Histogram: Species")
+        
         @render_plotly
         def plotly_hist():
             px_hist = px.histogram(
-                data_frame=penguins_df(),
-                x=input.selected_attribute(),
-                nbins=input.plotly_bin_count(),
-                color='species'
+                data_frame = filtered_data(),
+                x = input.selected_attribute(),
+                nbins = input.plotly_bin_count(),
+                color = 'Species'
             )
             return px_hist
 
     with ui.card(full_screen=True, class_="card-with-shadow"):
+        ui.card_header("Seaborn Histogram: Species")
+        
         @render.plot
         def sns_hist():
             sns.histplot(
-                data = penguins_df(),
+                data = filtered_data(),
                 x = input.selected_attribute(),
                 bins = input.seaborn_bin_count(),
-                hue = 'species'
+                hue = 'Species'
             )
 
 with ui.card(full_screen=True, class_="card-with-shadow"):
-
     ui.card_header("Plotly Scatterplot: Species")
 
     @render_plotly
     def plotly_scatterplot():
         px_scatter = px.scatter(
-            data_frame = penguins_df(),
+            data_frame = filtered_data(),
             x = input.selected_attribute(),
             y = input.selected_attribute_y_scatter(),
-            color = 'species',
-            symbol = 'sex',
-            hover_data = 'island'
+            color = 'Species',
+            symbol = 'Sex',
+            hover_data = 'Island'
         )
         return px_scatter
 
