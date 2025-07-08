@@ -1,12 +1,13 @@
 import plotly.express as px
 from shiny.express import input, ui, render
 from shinywidgets import render_plotly
-from shiny import reactive
+from shiny import reactive, req
 import seaborn as sns
 from palmerpenguins import load_penguins
 
 penguins_df = load_penguins()
 species_list: list = penguins_df['species'].unique().tolist()
+island_list: list = penguins_df['island'].unique().tolist()
 
 def format_name(name) -> str:
     split_name: list = name.rsplit('_', 1)
@@ -37,6 +38,13 @@ with ui.sidebar(open="open"):
         selected = species_list,
         inline = True,
     )
+    ui.input_checkbox_group(
+        "selected_island_list",
+        "Select Island",
+        choices = island_list,
+        selected = island_list,
+        inline = True,
+    )
     ui.input_selectize(
         "selected_attribute_y_scatter",
         "Scatterplot y-axis Attribute",
@@ -47,8 +55,12 @@ with ui.sidebar(open="open"):
 
 @reactive.calc 
 def filtered_data():
+    req(input.selected_species_list(), input.selected_island_list())
     is_species_match = penguins_df["Species"].isin(input.selected_species_list())
-    return penguins_df[is_species_match]
+    is_island_match = penguins_df["Island"].isin(input.selected_island_list())
+    filtered_penguins_df = penguins_df[is_species_match & is_island_match]
+    req(not filtered_penguins_df.empty)
+    return filtered_penguins_df
 
 ui.tags.style(
         """
@@ -81,6 +93,10 @@ with ui.layout_columns():
                 nbins = input.plotly_bin_count(),
                 color = 'Species'
             )
+            px_hist.update_layout(
+                yaxis_title = px_hist.layout.yaxis.title.text.title(),
+                plot_bgcolor='white'
+            )
             return px_hist
 
     with ui.card(full_screen=True, class_="card-with-shadow"):
@@ -107,6 +123,11 @@ with ui.card(full_screen=True, class_="card-with-shadow"):
             color = 'Species',
             symbol = 'Sex',
             hover_data = 'Island'
+        )
+        px_scatter.update_layout(
+            plot_bgcolor='white', 
+            yaxis=dict(showgrid=True, gridcolor='grey', gridwidth=0.1), 
+            xaxis=dict(showgrid=True, gridcolor='grey', gridwidth=0.1)
         )
         return px_scatter
 
