@@ -21,10 +21,15 @@ penguins_df.columns = [
 penguins_df["Sex"] = penguins_df["Sex"].str.title()
 continuous_variables: list = penguins_df.select_dtypes(include=float).columns.tolist()
 
-
+ui.tags.style(
+    """
+    .card-with-shadow {box-shadow: 0px 4px 8px rgba(0, 0, 75, 0.5);}
+    #my_sidebar {box-shadow: 0px 4px 8px rgba(0, 0, 75, 0.5);}
+    """
+)
 ui.page_opts(title="Penguin Data By Jordan", fillable=True)
 
-with ui.sidebar(open="open"):
+with ui.sidebar(open="open", id="my_sidebar"):
     ui.h2("Sidebar")
     ui.input_selectize("selected_attribute", "Select Attribute", continuous_variables)
     ui.input_numeric("plotly_bin_count", "Plotly Histogram Bins", 50)
@@ -60,13 +65,6 @@ def filtered_data():
     filtered_penguins_df = penguins_df[is_species_match & is_island_match]
     req(not filtered_penguins_df.empty)
     return filtered_penguins_df
-
-
-ui.tags.style(
-    """
-        .card-with-shadow {box-shadow: 0px 4px 8px rgba(0, 0, 100, 0.5);}
-        """
-)
 
 
 with ui.layout_columns():
