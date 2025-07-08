@@ -6,29 +6,27 @@ import seaborn as sns
 from palmerpenguins import load_penguins
 
 penguins_df = load_penguins()
-species_list: list = penguins_df['species'].unique().tolist()
-island_list: list = penguins_df['island'].unique().tolist()
+species_list: list = penguins_df["species"].unique().tolist()
+island_list: list = penguins_df["island"].unique().tolist()
 
 def format_name(name) -> str:
-    split_name: list = name.rsplit('_', 1)
-    new_name: str = split_name[0].replace('_',' ').title() + f' ({split_name[1]})'
+    split_name: list = name.rsplit("_", 1)
+    new_name: str = split_name[0].replace("_", " ").title() + f" ({split_name[1]})"
     return new_name
-    
+
 penguins_df.columns = [
     format_name(name) if penguins_df.dtypes[name] == float else name.title()
     for name in penguins_df.columns
 ]
+penguins_df["Sex"] = penguins_df["Sex"].str.title()
 continuous_variables: list = penguins_df.select_dtypes(include=float).columns.tolist()
+
 
 ui.page_opts(title="Penguin Data By Jordan", fillable=True)
 
 with ui.sidebar(open="open"):
     ui.h2("Sidebar")
-    ui.input_selectize(
-        "selected_attribute",
-        "Select Attribute",
-        continuous_variables
-    )
+    ui.input_selectize("selected_attribute", "Select Attribute", continuous_variables)
     ui.input_numeric("plotly_bin_count", "Plotly Histogram Bins", 50)
     ui.input_slider("seaborn_bin_count", "Seaborn Histogram Bins", 10, 344, 50)
     ui.input_checkbox_group(
@@ -48,12 +46,13 @@ with ui.sidebar(open="open"):
     ui.input_selectize(
         "selected_attribute_y_scatter",
         "Scatterplot y-axis Attribute",
-        continuous_variables[::-1]
+        continuous_variables[::-1],
     )
     ui.hr()
     ui.a("GitHub", href="https://github.com/JfromNWMS/cintel-02-data", target="_blank")
 
-@reactive.calc 
+
+@reactive.calc
 def filtered_data():
     req(input.selected_species_list(), input.selected_island_list())
     is_species_match = penguins_df["Species"].isin(input.selected_species_list())
@@ -62,54 +61,62 @@ def filtered_data():
     req(not filtered_penguins_df.empty)
     return filtered_penguins_df
 
+
 ui.tags.style(
-        """
+    """
         .card-with-shadow {box-shadow: 0px 4px 8px rgba(0, 0, 100, 0.5);}
         """
 )
 
+
 with ui.layout_columns():
 
     with ui.card(full_screen=True, class_="card-with-shadow"):
+
         @render.data_frame
         def datatable():
-            return render.DataTable(filtered_data(), height='185px')
-            
+            return render.DataTable(filtered_data(), height="185px")
+
     with ui.card(full_screen=True, class_="card-with-shadow"):
+
         @render.data_frame
         def datagrid():
             return render.DataGrid(filtered_data())
 
+
 with ui.layout_columns():
-    
+
     with ui.card(full_screen=True, class_="card-with-shadow"):
         ui.card_header("Plotly Histogram: Species")
-        
+
         @render_plotly
         def plotly_hist():
             px_hist = px.histogram(
                 data_frame = filtered_data(),
                 x = input.selected_attribute(),
                 nbins = input.plotly_bin_count(),
-                color = 'Species'
+                color = "Species",
+                template = "plotly_white",
+                opacity = 0.5
             )
-            px_hist.update_layout(
-                yaxis_title = px_hist.layout.yaxis.title.text.title(),
-                plot_bgcolor='white'
+            px_hist.update_yaxes(
+                title_text = px_hist.layout.yaxis.title.text.title(),
             )
             return px_hist
 
     with ui.card(full_screen=True, class_="card-with-shadow"):
         ui.card_header("Seaborn Histogram: Species")
-        
+
         @render.plot
         def sns_hist():
+            sns.set_style("whitegrid")
             sns.histplot(
                 data = filtered_data(),
                 x = input.selected_attribute(),
                 bins = input.seaborn_bin_count(),
-                hue = 'Species'
+                hue = "Species",
             )
+
 
 with ui.card(full_screen=True, class_="card-with-shadow"):
     ui.card_header("Plotly Scatterplot: Species")
@@ -120,16 +127,10 @@ with ui.card(full_screen=True, class_="card-with-shadow"):
             data_frame = filtered_data(),
             x = input.selected_attribute(),
             y = input.selected_attribute_y_scatter(),
-            color = 'Species',
-            symbol = 'Sex',
-            hover_data = 'Island'
-        )
-        px_scatter.update_layout(
-            plot_bgcolor='white', 
-            yaxis=dict(showgrid=True, gridcolor='grey', gridwidth=0.1), 
-            xaxis=dict(showgrid=True, gridcolor='grey', gridwidth=0.1)
+            color = "Species",
+            opacity = 0.7,
+            symbol = "Sex",
+            hover_data = "Island",
+            template = "plotly_white",
         )
         return px_scatter
-
-
-    
